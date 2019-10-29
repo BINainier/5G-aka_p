@@ -1,6 +1,8 @@
+# -*- coding:utf-8 -*-
 import sys
 import binascii
-from   Crypto.Cipher import AES
+from Crypto.Cipher import AES
+from itertools import izip
 
 
 
@@ -10,7 +12,7 @@ __XOR__ = lambda x, y: chr(ord(x) ^ ord(y))
 
 def LogicalXOR(str1, str2):
     '''Function to XOR two strings'''
-    return ''.join(__XOR__(x, y) for (x,y) in zip(str1, str2))
+    return ''.join(__XOR__(x, y) for (x,y) in izip(str1, str2))
 
 
 def AESEncrypt(key, buf):
@@ -131,6 +133,6 @@ def main():
         'amf':'8d00'
     }
     GenerateQuintuple(keyset)
-    print(keyset)
+    print keyset
 if __name__ == "__main__":
     main()
