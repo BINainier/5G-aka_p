@@ -1,6 +1,7 @@
 import sys
 import binascii
 from   Crypto.Cipher import AES
+from itertools import izip
 
 
 
@@ -10,7 +11,7 @@ __XOR__ = lambda x, y: chr(ord(x) ^ ord(y))
 
 def LogicalXOR(str1, str2):
     '''Function to XOR two strings'''
-    return ''.join(__XOR__(x, y) for (x,y) in zip(str1, str2))
+    return ''.join(__XOR__(x, y) for (x,y) in izip(str1, str2))
 
 
 def AESEncrypt(key, buf):
@@ -130,7 +131,7 @@ def ReadMilenageInput(filename):
     try:
        fp = open(filename)
     except:
-       print ('Error opening file %s'%(filename))
+       print 'Error opening file %s'%(filename)
        sys.exit()
 
     for line in fp.readlines():
@@ -150,7 +151,7 @@ def ReadMilenageInput(filename):
 
     #Validate input
     if len(attribs) == 0:
-       print ('Milenage: Please provide KI/OP/RAND in input file')
+       print 'Milenage: Please provide KI/OP/RAND in input file'
        sys.exit()
 
     # for keyset in attribs:
@@ -167,18 +168,18 @@ def PrintMilenageOutput(attribs):
     '''Prints input read'''
     idx = 1
     for keyset in attribs[4]:
-       print ('Keyset # %d'%(idx))
-       print ('  %2s: %s'%('ki', keyset['ki']) )
-       print ('  %2s: %s'%('op', keyset['op']) )
-       print ('  %2s: %s'%('sqn', keyset['sqn']) )
-       print ('  %2s: %s'%('amf', keyset['amf']) )
-       print ('  Auth Quintuple: ')
-       print ('    %4s: %s'%('rand', keyset['rand']) )
-       print ('    %4s: %s'%('xres', keyset['xres']) )
-       print ('    %4s: %s'%('ck',   keyset['ck']) )
-       print ('    %4s: %s'%('ik',   keyset['ik']) )
-       print ('    %4s: %s'%('AUTN',   keyset['AUTN']) )
-       print ('')
+       print 'Keyset # %d'%(idx)
+       print '  %2s: %s'%('ki', keyset['ki']) 
+       print '  %2s: %s'%('op', keyset['op']) 
+       print '  %2s: %s'%('sqn', keyset['sqn']) 
+       print '  %2s: %s'%('amf', keyset['amf']) 
+       print '  Auth Quintuple: '
+       print '    %4s: %s'%('rand', keyset['rand']) 
+       print '    %4s: %s'%('xres', keyset['xres']) 
+       print '    %4s: %s'%('ck',   keyset['ck']) 
+       print '    %4s: %s'%('ik',   keyset['ik']) 
+       print '    %4s: %s'%('AUTN',   keyset['AUTN']) 
+       print ''
        idx += 1 
     return
     
@@ -186,7 +187,7 @@ def PrintMilenageOutput(attribs):
 def main():
     '''The main function'''
     if len(sys.argv) < 2:
-       print ('Milenage: Please provide input file')
+       print 'Milenage: Please provide input file'
        return
 
     #Read input
