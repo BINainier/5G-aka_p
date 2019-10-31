@@ -101,7 +101,7 @@ def Milenage(ki, opc, rand, sqn, amf):
     xres, ck, ik, ak = MilenageF2345(ki, opc,rand)
     AUTN = LogicalXOR(sqn[:6], ak)  #ak:6
     AUTN = AUTN+amf[:2]+mac_a   #amf取2位, mac_a:8
-    return xres, ck, ik, AUTN
+    return xres, ck, ik, AUTN, ak
 
 
 def GenerateQuintuple(keyset):
@@ -115,7 +115,7 @@ def GenerateQuintuple(keyset):
     opc = MilenageGenOpc(ki, op)
 
     #Get xres, ck, ik, AUTN
-    xres, ck, ik, AUTN= Milenage(ki, opc, rand, sqn, amf)
+    xres, ck, ik, AUTN,ak = Milenage(ki, opc, rand, sqn, amf)
 
     #Store values now
     keyset['opc']  = binascii.hexlify(opc)
