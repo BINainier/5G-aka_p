@@ -7,10 +7,20 @@ from hashlib import sha256
 import socket
 import milenage
 import test
-
-
- 
-
+import random
+def Generate_rand():
+    rand=''
+    for num in range(0,32):
+        rand=rand+str(random.choice('0123456789abcdef'))
+    return  rand
+def Init():
+    ki = '000000012449900000000010123456d8'
+    #rand = '9fddc72092c6ad036b6e464789315b78'
+    rand=Generate_rand()
+    sqn = '1234567888d8'
+    amf = '8d00'
+    op = 'cda0c2852846d8eb63a387051cdd1fa5'
+    return ki,rand,sqn,amf,op
 def KDF_ausf(key, P0, L0, P1, L1):
     #generate CK', IK'
     appsecret = key
@@ -29,35 +39,28 @@ def KDF_xres(key, P0, L0, P1, L1,P2,L2):
     s = binascii.hexlify('20' + P0 + L0 + P1 + L1+ P2 + L2 )
     Xres_star=hmac.new(appsecret, s, digestmod=sha256).digest()
     return Xres_star
-def tcplink(sock, addr):
+def Handle_data(sock, addr):
     #contact with AUSF
     print('Accept new connection from %s:%s...' % addr)
     print('收到来自AUSF的连接')
     sock.send(b'Welcome!\n')
     sock.send(b'欢迎接入UDM！\n')
     while True:
-        #data = sock.recv(1024)
-
-        #print(data)
-
+        data = sock.recv(1024)
+        print 'get data from AUSF:\n'
+        print data
         #if not data or data.decode('utf-8') == 'exit':
-         #   break
-
-        #
-        ki = '000000012449900000000010123456d8'
-        rand = '9fddc72092c6ad036b6e464789315b78'
-        sqn = '1234567888d8'
-        amf = '8d00'
-        op ='cda0c2852846d8eb63a387051cdd1fa5'
+         #  break
+        ki, rand, sqn, amf, op = Init()
         #CACULETEopc
         opc=milenage.MilenageGenOpc(ki,op)
         xres, ck, ik, AUTN, ak =milenage.Milenage(ki, opc, rand, sqn, amf)
-        #generate AV
-        #AV=rand+xres+ck+ik+AUTN
         #generate K_ausf
         key = ck + ik
-        P0 = 'xidian'  # accept from AUSF
-        L0 = '06'  # accept from AUSF
+        #P0 = 'xidian'  # accept from AUSF
+        #L0 = '06'  # accept from AUSF
+        P0 = data
+        L0 = str(len(data))
         P1 = test.LogicalXOR(sqn, ak)
         L1 = '06'
         K_ausf = binascii.hexlify(KDF_ausf(key, P0, L0, P1, L1))
@@ -69,9 +72,11 @@ def tcplink(sock, addr):
         xres_star=binascii.hexlify(KDF_xres(key, P0, L0, P1, L1,P2,L2))
         message=rand+AUTN+xres_star+K_ausf
         print 'the result of message is：\n'
+        #rand=32 AUTN=32 XRES_star=64 K_ausf=64
         print message
+        print 'the length of message is:'+str(len(message))
         #sock.send(message.encode('utf-8'))
-        sock.send(message.encode('utf-8'))
+        sock.send(message)
         #sock.send(('Hello, %s!' % data.decode('utf-8')).encode('utf-8'))
 
     #sock.close()
@@ -99,7 +104,7 @@ def main():
         sock, addr = s.accept()
         # 创建新线程来处理TCP连接:
         #该线程绑定到tcplink函数
-        t = threading.Thread(target=tcplink, args=(sock, addr))
+        t = threading.Thread(target=Handle_data, args=(sock, addr))
         t.start()
 
 
