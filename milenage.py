@@ -83,16 +83,6 @@ def MilenageF2345(ki, opc, rand):
     ik = LogicalXOR(ik, opc)
 
 
-    # #F5- to calculate akstar(add)    
-    # #OR  F5 == 0
-    # ak_map = {}
-    # for i in range(16):
-    #     ak_map[(i+4)%16] = __XOR__(tmp2[i], opc[i])
-    # ak_map[15] = __XOR__(ak_map[15], chr(8))
-    # tmp1 = ''.join(val for val in ak_map.values())
-    # tmp1 = AESEncrypt(ki, tmp1)
-    # akstar = LogicalXOR(tmp1, opc)
-
     return xres, ck, ik, ak
 
 
