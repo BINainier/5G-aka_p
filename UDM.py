@@ -7,11 +7,80 @@ import hmac
 from hashlib import sha256
 import socket
 import random
+
+#reveive SUCI, decrypt and generate SUPI
+def SUPI(suci):
+    mcc = suci[1:4]
+    mnc = suci[4:6]
+    msin = suci[11:]
+    supi = mcc+mnc+msin
+    return supi
+
+
 def Generate_rand():
     rand=''
     for num in range(0,32):
         rand=rand+str(random.choice('0123456789abcdef'))
     return  rand
+
+
+
+def KDF_ausf(key, P0, L0, P1, L1):
+    #generate CK', IK'
+    appsecret = key
+    s = binascii.hexlify('6A'+P0+L0+P1+L1)
+    print s
+    tmp = hmac.new(appsecret, s, digestmod=sha256).hexdigest()
+    ck_new = tmp[:32]
+    ik_new = tmp[32:]
+    key_new = ck_new+ik_new
+    K_ausf = hmac.new(key_new, s, digestmod=sha256).hexdigest()
+    return K_ausf
+
+def KDF_xres(key, P0, L0, P1, L1,P2,L2):
+    #generate Xres_star
+    appsecret = key
+    s = binascii.hexlify('6B' + P0 + L0 + P1 + L1+ P2 + L2 )
+    tmp=hmac.new(appsecret, s, digestmod=sha256).hexdigest()
+    xres_star=tmp[32:]
+    print xres_star
+    return xres_star
+
+def SentTo_AUSF(data,host,port):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((host, port))
+    print 'send 5g he av To AUSF\n'
+    client.send(data)
+    client.close()
+
+def receive_from_AUSF(port):
+    HOST = ''
+    PORT = port
+    ADDR = (HOST, PORT)
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(ADDR)
+    server.listen(5)
+    while True:
+        print 'Waiting for connection...'
+        tcpCliSock,addr = server.accept()
+        print 'Waiting for connection...'
+        print'Waiting for connection with AUSF...'
+        print 'got connected from', addr
+        #global data
+        #data = 0
+        data = tcpCliSock.recv(1024)
+        tcpCliSock.close()
+        server.close()
+        print 'get data from AUSF:\n'
+        print data
+        return data
+        #if not data:
+         #   break
+        
+        #tcpCliSock.close()
+        #server.close()
+
+
 def Init():
     ki = '000000012449900000000010123456d8'
     #rand = '9fddc72092c6ad036b6e464789315b78'
@@ -20,71 +89,52 @@ def Init():
     amf = '8d00'
     op = 'cda0c2852846d8eb63a387051cdd1fa5'
     return ki,rand,sqn,amf,op
-def KDF_ausf(key, P0, L0, P1, L1):
-    #generate CK', IK'
-    appsecret = key
-    s = binascii.hexlify('20')+binascii.hexlify(P0)+binascii.hexlify(L0)+binascii.hexlify(P1)+binascii.hexlify(L1)
-    print s
-    tmp = hmac.new(appsecret, s, digestmod=sha256).digest()
-    ck_new = tmp[:32]
-    ik_new = tmp[32:]
-    key_new = ck_new+ik_new
-    K_ausf = hmac.new(key_new, s, digestmod=sha256).digest()
-    return K_ausf
-
-def KDF_xres(key, P0, L0, P1, L1,P2,L2):
-    #generate Xres_star
-    appsecret = key
-    s = binascii.hexlify('20' + P0 + L0 + P1 + L1+ P2 + L2 )
-    Xres_star=hmac.new(appsecret, s, digestmod=sha256).digest()
-    return Xres_star
-def SentTo_AUSF(data,host3,port3):
-    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect((host3, port3))
-    print 'send 5g he av To AUSF\n'
-    client.send(data)
 
 def main():
+
+    data=receive_from_AUSF(9999)
+    data=str(data)
+    suci = data[:21]
+
+    supi = SUPI(suci)
+
+    
+    ki, rand, sqn, amf, op = Init()
+    opc = milenage.MilenageGenOpc(ki, op)
+    xres, ck, ik, AUTN, ak = milenage.Milenage(ki, opc, rand, sqn, amf)
+    # generate K_ausf
+    key = ck + ik
+    # P0 = 'xidian'  # accept from AUSF
+    # L0 = '06'  # accept from AUSF
+    P0 = str(data)[21:]
+    L0 = str(binascii.hexlify(str(len(P0))))
+    P1 = milenage.LogicalXOR(sqn, ak)
+    L1 = '06'
+    K_ausf = KDF_ausf(key, P0, L0, P1, L1)
+
+    #generate xres*
+    P1 = rand
+    L1 = '08'
+    P2 = xres
+    L2 = '04'
+    AUTN = binascii.hexlify(AUTN)
+    print ''
+    xres_star = KDF_xres(key, P0, L0, P1, L1, P2, L2)
+    print str(len(rand))+' '+str(len(AUTN))+' '+str(len(xres_star))+'0'+str(len(K_ausf))
+   
+    message = rand + AUTN + xres_star + K_ausf
+    #rand
+    print 'the result of message is：\n'
+    # rand=32 AUTN=32 XRES_star=32 K_ausf=64
+    print message
+    print 'the length of message is:' + str(len(message))
+
+    # sock.send(message.encode('utf-8')) 
     host3='127.0.0.1'
     port3=6001
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(('127.0.0.1', 9999))
-    server.listen(5)
-    print('Waiting for connection...')
-    print('等待与AUSF连接...')
-    while True:
-        sock, addr = server.accept()
-        print 'got connected from', addr
-        data = sock.recv(1024)
-        print 'get data from AUSF:\n'
-        print data
-        # if not data or data.decode('utf-8') == 'exit':
-        #  break
-        ki, rand, sqn, amf, op = Init()
-        # CACULETEopc
-        opc = milenage.MilenageGenOpc(ki, op)
-        xres, ck, ik, AUTN, ak = milenage.Milenage(ki, opc, rand, sqn, amf)
-        # generate K_ausf
-        key = ck + ik
-        # P0 = 'xidian'  # accept from AUSF
-        # L0 = '06'  # accept from AUSF
-        P0 = data
-        L0 = str(len(data))
-        P1 = milenage.LogicalXOR(sqn, ak)
-        L1 = '06'
-        K_ausf = binascii.hexlify(KDF_ausf(key, P0, L0, P1, L1))
-        P1 = rand
-        L1 = '04'
-        P2 = xres
-        L2 = '04'
-        AUTN = binascii.hexlify(AUTN)
-        xres_star = binascii.hexlify(KDF_xres(key, P0, L0, P1, L1, P2, L2))
-        message = rand + AUTN + xres_star + K_ausf
-        print 'the result of message is：\n'
-        # rand=32 AUTN= XRE32S_star=64 K_ausf=64
-        print message
-        print 'the length of message is:' + str(len(message))
-        # sock.send(message.encode('utf-8'))
-        SentTo_AUSF(message,host3,port3)
+    message=supi
+    SentTo_AUSF(message,host3,port3)
+
+    
 if __name__ == "__main__":
     main()
