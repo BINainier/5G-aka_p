@@ -9,21 +9,18 @@ import socket
 import random
 
 #reveive SUCI, decrypt and generate SUPI
-def SUPI(suci):
-    mcc = suci[1:4]
-    mnc = suci[4:6]
-    msin = suci[11:]
+def SUPI(suci):#suci length:21 supi length:
+    mcc = suci[1:4]#3
+    mnc = suci[4:6]#2
+    msin = suci[11:]#10
     supi = mcc+mnc+msin
-    return supi
-
+    return supi#15
 
 def Generate_rand():
     rand=''
     for num in range(0,32):
         rand=rand+str(random.choice('0123456789abcdef'))
     return  rand
-
-
 
 def KDF_ausf(key, P0, L0, P1, L1):
     #generate CK', IK'
@@ -80,7 +77,6 @@ def receive_from_AUSF(port):
         #tcpCliSock.close()
         #server.close()
 
-
 def Init():
     ki = '000000012449900000000010123456d8'
     #rand = '9fddc72092c6ad036b6e464789315b78'
@@ -91,14 +87,10 @@ def Init():
     return ki,rand,sqn,amf,op
 
 def main():
-
     data=receive_from_AUSF(9999)
     data=str(data)
     suci = data[:21]
-
     supi = SUPI(suci)
-
-    
     ki, rand, sqn, amf, op = Init()
     opc = milenage.MilenageGenOpc(ki, op)
     xres, ck, ik, AUTN, ak = milenage.Milenage(ki, opc, rand, sqn, amf)
@@ -122,17 +114,14 @@ def main():
     xres_star = KDF_xres(key, P0, L0, P1, L1, P2, L2)
     print str(len(rand))+' '+str(len(AUTN))+' '+str(len(xres_star))+'0'+str(len(K_ausf))
    
-    message = rand + AUTN + xres_star + K_ausf
-    #rand
-    print 'the result of message is：\n'
+    HE_AV = rand + AUTN + xres_star + K_ausf
+    print 'the result of HE_AV is：\n'
     # rand=32 AUTN=32 XRES_star=32 K_ausf=64
-    print message
-    print 'the length of message is:' + str(len(message))
-
-    # sock.send(message.encode('utf-8')) 
+    print HE_AV#160
+    print 'the length of HE_AV is:' + str(len(HE_AV))
     host3='127.0.0.1'
     port3=6001
-    message=supi
+    message=str(HE_AV)+str(supi)
     SentTo_AUSF(message,host3,port3)
 
     
