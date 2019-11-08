@@ -35,10 +35,12 @@ def SentTo_UE(data,host,port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((host, port))
     print 'send RAND and ANTN to UE '
+    client.send(data)
 
 def SentTo_AUSF(data,host,port):
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect((host, port))
+    client.send(data)
 
 def AV_resolve(data):
     rand = data[:32]
@@ -59,12 +61,12 @@ def main():
     host3 = '127.0.0.1'  # UE Server IP
     port = 7001  # LOCAL Server Port
     port2 = 6001  # AUSF Server Port
-    port3 = 9999  # UE ServerPort
+    port3 = 9998  # UE ServerPort
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind((host, port))
     server.listen(5)
     print('Waiting for connection...')
-    print('等待与UE 和 AUSF连接')
+    # print('等待与UE 和 AUSF连接')
     # listen to port 7001
     while True:
         while True:
@@ -83,12 +85,16 @@ def main():
                 print 'get 5gAV and SUPI from AUSF'
                 AV, supi = AUSF_resolve(data)
                 global hxres_star, K_seaf, rand  # save these three parameters
-                hxres_star = 0
-                K_seaf = 0
-                rand = 0
                 rand, autn, hxres_star, K_seaf = AV_resolve(AV)
                 # sent rand and AUTN to UE
+                print 'autn:'
+                print autn
+                print 'length:'
+                print len(str(autn))
+                print 'rand:'
+                print rand
                 message = rand + autn
+                message=str(message)
                 SentTo_UE(message, host3, port3)
                 print 'send rand and autn to ue'
 
@@ -112,4 +118,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
