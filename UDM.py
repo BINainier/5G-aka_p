@@ -74,8 +74,8 @@ def receive_from_AUSF(port):
         #if not data:
          #   break
         
-        #tcpCliSock.close()
-        #server.close()
+    #     tcpCliSock.close()
+    # server.close()
 
 def Init():
     ki = '000000012449900000000010123456d8'
