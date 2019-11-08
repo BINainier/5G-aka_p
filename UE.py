@@ -27,11 +27,33 @@ def Generate_SUCI(imsi):
     return suci
 
 #send SUCI to seaf
-def SendTo_SEAF(data, host, port):
+def Send_suci_To_SEAF(host, port):
+    imsi = Generate_IMSI()
+    suci = Generate_SUCI(imsi)
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client.connect(host, port)
+    client.connect((host, port))
     print 'send SUCI to SEAF\n'
-    client.send(data)
+    client.send(suci)
+
+#reveive Auth-Req(rand, AUTN) from SEAF
+def reveive_authreq_from_SEAF(port):
+    HOST =''
+    PORT = port
+    ADDR = (HOST, PORT)
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(ADDR)
+    server.listen(5)
+    while True:
+        print 'Waiting for connection...'
+        tcpCliSock, addr = server.accept()
+        print 'Waiting for connection with SEAF...'
+        print 'got connected from ', addr
+        data = tcpCliSock.recv(1024)
+      
+        print 'get data from SEAF:\n'
+        print data
+        return data
+
 
 #resolve AUTN
 def AUTN_resolve(AUTN):
@@ -49,6 +71,8 @@ def milenage_ue(rand, AUTN, ki, op):
     opc = milenage.MilenageGenOpc(ki, op)
     tmp1 = milenage.LogicalXOR(rand, opc)
     tmp2 = milenage.AESEncrypt(ki, tmp1)
+    tmp1 = milenage.LogicalXOR(tmp2, opc)
+    tmp1 = tmp1[:15] + chr(ord(tmp1[15]) ^ 1)
     ak_map = {}
     for i in range(16):
         ak_map[(i+4)%16] = milenage.__XOR__(tmp2[i], opc[i])
@@ -65,11 +89,11 @@ def milenage_ue(rand, AUTN, ki, op):
 
 #generate res*
 def KDF_res_star(ck, ik, P0, L0, rand, res):
-    key = ck+ik
+    key = binascii.hexlify(ck+ik)
     P1 = rand
-    L1 = str(len(rand))
-    P2 = res
-    L2 = str(len(res))
+    L1 = str(binascii.hexlify(str(len(rand))))
+    P2 = binascii.hexlify(res)
+    L2 = str(binascii.hexlify(str(len(res))))
     s = binascii.hexlify('6B' + P0 + L0 + P1 + L1 + P2 + L2)
     tmp=hmac.new(key, s, digestmod=sha256).hexdigest()
     res_star=tmp[32:]
@@ -86,14 +110,65 @@ def check_mac(xmac_a, mac_a):
 def check_sqn(sqn):
     pass
 
+#send res* to seaf
+def Send_res_star_To_SEAF(res_star, host, port):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((host, port))
+    print 'send res* to SEAF\n'
+    client.send(res_star)
+
 #generate auts
 def generate_auts(sqn_ms, ak_star, xmac_s):
     tmp = milenage.LogicalXOR(sqn_ms, ak_star)
     auts = tmp+xmac_s
     return auts
 
+#send auts to seaf
+def Send_auts_To_SEAF(auts, host, port):
+    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client.connect((host, port))
+    print 'send auts to SEAF\n'
+    client.send(auts)
+
+def Init():
+    ki = '000000012449900000000010123456d8'
+    op = 'cda0c2852846d8eb63a387051cdd1fa5'
+    sn_name = 'xd5G'
+    sqn_max = '100000000000000000000000'
+    return ki, op, sn_name, sqn_max
+
 def main():
-    pass
+    
+    ki, op, sn_name, sqn_max = Init()
+    P0 = sn_name
+    L0 = str(binascii.hexlify(str(len(P0))))
+
+    #send SUCI to SEAF
+    host = '127.0.0.1'
+    port = 7001
+    Send_suci_To_SEAF(host,port)
+
+
+    #reveive Auth-Req from SEAF
+    port2 = 9998
+    auth_req = reveive_authreq_from_SEAF(port2)
+
+    # auth_req = binascii.unhexlify(auth_req)
+
+    rand = auth_req[:16]
+    autn = auth_req[16:]
+    sqn, res, ck, ik, ak, ak_star, xmac_a, xmac_s, mac_a = milenage_ue(rand, autn, ki, op)
+
+    if check_mac(xmac_a, mac_a):
+        res_star = KDF_res_star(ck, ik, P0, L0, rand, res)
+        Send_res_star_To_SEAF(res_star, host, port)
+
+    else:
+        auts = generate_auts(sqn_max, ak_star, xmac_s)
+        auts = binascii.hexlify(auts)
+        Send_auts_To_SEAF(auts, host, port)
+
+
 
 if __name__ == "__main__":
-    pass
+    main()
