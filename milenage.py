@@ -19,7 +19,8 @@ def AESEncrypt(key, buf):
     '''Encrypt buffer using AES-SHA1 128 algorithm
        @key: Key to be used for encryption
        @buf: Buffer to be encrypted'''
-    encryptor = AES.new(key, AES.MODE_CBC)
+    iv = '1234567812345678'   #初始化向量
+    encryptor = AES.new(key, AES.MODE_CBC, iv)
     return encryptor.encrypt(buf)
 
 
@@ -83,6 +84,16 @@ def MilenageF2345(ki, opc, rand):
     ik = LogicalXOR(ik, opc)
 
 
+    # #F5- to calculate akstar(add)    
+    # #OR  F5 == 0
+    # ak_map = {}
+    # for i in range(16):
+    #     ak_map[(i+4)%16] = __XOR__(tmp2[i], opc[i])
+    # ak_map[15] = __XOR__(ak_map[15], chr(8))
+    # tmp1 = ''.join(val for val in ak_map.values())
+    # tmp1 = AESEncrypt(ki, tmp1)
+    # akstar = LogicalXOR(tmp1, opc)
+
     return xres, ck, ik, ak
 
 
@@ -91,107 +102,4 @@ def Milenage(ki, opc, rand, sqn, amf):
     xres, ck, ik, ak = MilenageF2345(ki, opc,rand)
     AUTN = LogicalXOR(sqn[:6], ak)  #ak:6
     AUTN = AUTN+amf[:2]+mac_a   #amf取2位, mac_a:8
-    return xres, ck, ik, AUTN, ak
-
-
-def GenerateQuintuple(keyset):
-    ki   = binascii.unhexlify(keyset['ki'])
-    op   = binascii.unhexlify(keyset['op'])
-    rand = binascii.unhexlify(keyset['rand'])
-    sqn = binascii.unhexlify(keyset['sqn'])
-    amf = binascii.unhexlify(keyset['amf'])
-
-    #Generate opc from ki and op
-    opc = MilenageGenOpc(ki, op)
-
-    #Get xres, ck, ik, AUTN
-    xres, ck, ik, AUTN,ak = Milenage(ki, opc, rand, sqn, amf)
-
-    #Store values now
-    keyset['opc']  = binascii.hexlify(opc)
-    keyset['xres']   = binascii.hexlify(xres)
-    keyset['ck'] = binascii.hexlify(ck)
-    keyset['ik'] = binascii.hexlify(ik)
-    keyset['AUTN'] = binascii.hexlify(AUTN)
-    return
-
-
-def ReadMilenageInput(filename):
-    attribs = []
-    keyset  = {}
-    try:
-       fp = open(filename)
-    except:
-       print 'Error opening file %s'%(filename)
-       sys.exit()
-
-    for line in fp.readlines():
-        if line.startswith('#'):
-            continue
-        # if line.startswith('\n'):
-        #     if len(keyset):
-        #         attribs.append(keyset)
-        #         keyset = {}
-        #     continue
-        keyset = {}
-        attribs.append(keyset)
-
-        key, value = line.split('=')
-        keyset[key] = value.split('\n')[0]
-    # print(attribs)
-
-    #Validate input
-    if len(attribs) == 0:
-       print 'Milenage: Please provide KI/OP/RAND in input file'
-       sys.exit()
-
-    # for keyset in attribs:
-    #    if not keyset.__contains__('ki') or \
-    #       not keyset.__contains__('op') or \
-    #       not keyset.__contains__('rand'):
-    #       print ('Milenage: KI or OP missing in keyset')
-    #       sys.exit()
-
-    return attribs
-
-
-def PrintMilenageOutput(attribs):
-    '''Prints input read'''
-    idx = 1
-    for keyset in attribs[4]:
-       print 'Keyset # %d'%(idx)
-       print '  %2s: %s'%('ki', keyset['ki']) 
-       print '  %2s: %s'%('op', keyset['op']) 
-       print '  %2s: %s'%('sqn', keyset['sqn']) 
-       print '  %2s: %s'%('amf', keyset['amf']) 
-       print '  Auth Quintuple: '
-       print '    %4s: %s'%('rand', keyset['rand']) 
-       print '    %4s: %s'%('xres', keyset['xres']) 
-       print '    %4s: %s'%('ck',   keyset['ck']) 
-       print '    %4s: %s'%('ik',   keyset['ik']) 
-       print '    %4s: %s'%('AUTN',   keyset['AUTN']) 
-       print ''
-       idx += 1 
-    return
-    
-
-def main():
-    '''The main function'''
-    if len(sys.argv) < 2:
-       print 'Milenage: Please provide input file'
-       return
-
-    #Read input
-    attribs = ReadMilenageInput(sys.argv[1])
-
-    #Generate auth triplets now
-    for keyset in attribs:
-        GenerateQuintuple(keyset)
-
-    #Print output
-    PrintMilenageOutput(attribs)
-    return
-
-
-if __name__ == '__main__':
-    main()
+    return xres, ck, ik, AUTN,ak
